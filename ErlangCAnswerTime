@@ -1,0 +1,5 @@
+let
+    Source = (Calls as number, CallPeriod as number, CallDuration as number, AnswerTimeTarget as number) =>
+        Table.Max(Table.SelectRows(ErlangCTable(Calls, CallPeriod, CallDuration, 150, AnswerTimeTarget), each [AnswerTime] < AnswerTimeTarget), "AnswerTime")
+in
+    Source
