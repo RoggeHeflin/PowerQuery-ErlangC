@@ -1,0 +1,5 @@
+let
+    Source = (Calls as number, CallPeriod as number, CallDuration as number, AgentCount as number, AnswerTimeTarget as number) =>
+        Table.Max(ErlangCTable(Calls, CallPeriod, CallDuration, AgentCount, AnswerTimeTarget), "AgentNumber")
+in
+    Source
