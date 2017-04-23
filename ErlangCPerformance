@@ -1,0 +1,5 @@
+let
+    Source = (Calls as number, CallPeriod as number, CallDuration as number, AnswerTimeTarget as number, ServiceLevelTarget as number) =>
+        Table.Min(Table.SelectRows(ErlangCTable(Calls, CallPeriod, CallDuration, 150, AnswerTimeTarget), each [ServiceLevel] > ServiceLevelTarget), "ServiceLevel")
+in
+    Source
