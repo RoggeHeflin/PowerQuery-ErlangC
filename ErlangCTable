@@ -1,0 +1,39 @@
+let
+    Generate    = (Calls as number, CallPeriod as number, CallDuration as number, AgentCount as number, AnswerTime as number) =>
+        let
+            NewCallDuration  = if (CallDuration = 0) then 1 else CallDuration,
+        
+            ArrivalRate      = Double.From(Calls) / Double.From(CallPeriod),
+            TrafficIntensity = ArrivalRate * NewCallDuration,
+
+            AgentList        = List.Generate(() => 0 , each _ <= AgentCount, each _ +1),
+            AgentTable       = Table.FromList(AgentList, Splitter.SplitByNothing(), {"AgentNumber"}, ExtraValues.Error),
+            AgentTableTypes  = Table.TransformColumnTypes(AgentTable, {{"AgentNumber", Int16.Type}}),
+
+            ErlangBase       = (m as number) => Number.Power(TrafficIntensity, m) / Number.Factorial(m),
+            ErlangSum        = (t as table, m as number) => List.Sum(Table.SelectRows(t, each ([AgentNumber] < m))[ErlangFactor]),
+
+            AnswerSpeed   = (c as nullable number, a as number, o as number) as number => 
+                if ((c <> null) and (a > 0) and (o < 1.0)) then c * NewCallDuration/ a / (1.0 - o) else Number.PositiveInfinity,
+
+            ServiceLevel  = (c as nullable number, a as number) as number =>
+                let
+                    pcnt  = if ((c <> null) and (a > 0)) then 1.0 - c * Number.Power(Number.E, -(a - TrafficIntensity) * AnswerTime / NewCallDuration) else 0.0,
+                    sl    = if (pcnt > 0.0) then pcnt else 0.0
+                in
+                    sl,
+
+            AddOccupancy     = Table.AddColumn(AgentTableTypes, "Occupancy",    each TrafficIntensity / [AgentNumber],  Double.Type),
+            AddFactor        = Table.AddColumn(AddOccupancy,    "ErlangFactor", each ErlangBase([AgentNumber]),  Double.Type),
+            AddErlangSum     = Table.AddColumn(AddFactor,       "ErlangSum",    each ErlangSum(AddFactor, [AgentNumber]),  Double.Type),
+            AddErlangC       = Table.AddColumn(AddErlangSum,    "ErlangC",      each [ErlangFactor] / ([ErlangFactor] + (1.0 - [Occupancy]) * [ErlangSum]), Double.Type),
+
+            AddAnswerTime    = Table.AddColumn(AddErlangC,      "AnswerTime",  each AnswerSpeed([ErlangC], [AgentNumber], [Occupancy]), Double.Type),
+            AddServiceLevel  = Table.AddColumn(AddAnswerTime,   "ServiceLevel", each ServiceLevel([ErlangC], [AgentNumber]), Percentage.Type),
+
+            SelectColumns    = Table.SelectColumns(AddServiceLevel, {"AgentNumber", "Occupancy", "ErlangC", "AnswerTime", "ServiceLevel"})
+
+        in
+            SelectColumns
+in
+    Generate
